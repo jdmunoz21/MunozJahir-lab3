@@ -5,6 +5,8 @@
 
 extern int** sudoku_board;
 int* worker_validation;
+int is_valid_row;
+int is_valid_column;
 
 int** read_board_from_file(char* filename){
     FILE *fp = NULL;
@@ -21,68 +23,75 @@ int** read_board_from_file(char* filename){
         fscanf(fp, "%d,", &sudoku_board[i/9][i%9]);
     }
 
-    /* traversing the rows
-    for (int i = 0; i < ROW_SIZE; i++){
-        for (int j = 0; j < COL_SIZE; j++){
-            printf("%d", sudoku_board[i][j]);
-        }
-    } */
-
-    /* traversing the columns
-    for (int i = 0; i < ROW_SIZE; i++){
-        for (int j = 0; j < COL_SIZE; j++){
-            printf("%d", sudoku_board[j][i]);
-        }
-    } */
-
     return sudoku_board;
 }
 
-void *check_Column(void* parameters){
-    int numbers[COL_SIZE] = {0};
-
-    param_struct* sudoku = (param_struct*) parameters;
-
-    for (int row = sudoku->starting_row; row < sudoku->ending_row; row++){
-        for (int column = 0; column < ROW_SIZE; column++){
-            int current_Number = sudoku_board[row][column];
-            if (numbers[current_Number - 1] == 1){
-                return 0;
-            } else {
-                numbers[current_Number - 1] = 1;
-            }
-        }
-    }
-
-    return 1;
-}
-
 void *check_Row(void* parameters){
-    int numbers[COL_SIZE] = {0};
-
     param_struct* sudoku = (param_struct*) parameters;
 
-    for (int row = sudoku->starting_row; row < sudoku->ending_row; row++){
-        for (int column = 0; column < ROW_SIZE; column++){
-            int current_Number = sudoku_board[column][row];
-            if (numbers[current_Number - 1] == 1){
-                return 0;
-            } else {
-                numbers[current_Number - 1] = 1;
-            }
+    int numbers[COL_SIZE] = {0};
+
+    int row = sudoku->starting_row;
+
+    for (int i = 0; i < 9; i++){
+        numbers[sudoku_board[row][i] - 1] += 1;
+    }
+
+    for (int i = 0; i < 9; i++){
+        if (numbers[i] != 1){
+            is_valid_row = 0;
+            return NULL;
         }
     }
-    return 1;
+
+    is_valid_row = 1;
+
+    return NULL;
 }
 
+void *check_Column(void* parameters){
+    param_struct* sudoku = (param_struct*) parameters;
+
+    int numbers[COL_SIZE] = {0};
+
+    int col = sudoku->starting_col;
+
+    for (int i = 0; i < 9; i++){
+        numbers[sudoku_board[col][i] - 1] += 1;
+    }
+
+    for (int i = 0; i < 9; i++){
+        if (numbers[i] != 1){
+            is_valid_column = 0;
+            return NULL;
+        }
+    }
+
+    is_valid_column = 1;
+
+    return NULL;
+}
 
 int is_board_valid(){
-    pthread_t* tid;  /* the thread identifiers */
+    pthread_t tid;  /* the thread identifiers */
     pthread_attr_t attr;
-    param_struct* parameter;
+    param_struct* parameters = (param_struct*)malloc(sizeof(param_struct)*18);
     
     // replace this comment with your code
-    
 
+    for (int i = 0; i < 9; i++){
+        parameters[i].starting_row = i;
+        parameters[i].ending_col = i;
 
+        pthread_create(&tid, NULL, check_Row, &(parameters[i]));
+        pthread_join(tid, NULL);
+        pthread_create(&tid, NULL, check_Column, &(parameters[i]));
+        pthread_join(tid, NULL);
+
+        if (is_valid_row == 0 || is_valid_column == 0){
+            return 0;
+        }
+    }
+
+    return 1;
 }
